@@ -1,59 +1,75 @@
-import React, {Component} from 'react';
-import {StyleSheet, View, Text, TouchableOpacity} from 'react-native';
+import React, {Component, useState} from 'react';
+import {StyleSheet, View, Button, Text, ActivityIndicator} from 'react-native';
 
 import Geolocation from '@react-native-community/geolocation';
 
-export default class App extends Component {
-  state = {
-    initialLong: '',
-    initialLat: '',
-    lastLong: '',
-    latestLat: '',
+export default App = () => {
+  const [isLoading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [position, setPosition] = useState({
+    latitude: 0,
+    longitude: 0,
+  });
+  const [data, setData] = useState([]);
+  const kelvinToCelsius = require('kelvin-to-celsius');
+
+  const getPosition = () => {
+    Geolocation.getCurrentPosition(
+      (pos) => {
+        setError('');
+        setPosition({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+        getCurrentWeather([pos.coords.latitude, pos.coords.longitude]);
+      },
+      (e) => setError(e.message),
+    );
   };
 
-  watchID: ?number = null;
+  const getCurrentWeather = (props) => {
+    const latt = props[0];
+    const longg = props[1];
+    return fetch(
+      'https://api.openweathermap.org/data/2.5/weather?lat=' +
+        latt +
+        '&lon=' +
+        longg +
+        '&appid=d1f279c12df868b557e60a2ca33cff3c',
+    )
+      .then((response) => response.json())
+      .then((json) => {
+        setData(json);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  };
 
-  componentDidMount() {
-    Geolocation.getCurrentPosition(
-      (position) => {
-        console.log(position);
-        // const initialPosition = JSON.stringify(position);
-        const initialLong = JSON.stringify(position.coords.longitude);
-        const initialLat = JSON.stringify(position.coords.latitude);
-        this.setState({initialLong: initialLong});
-        this.setState({initialLat: initialLat});
-      },
-      (error) => Alert.alert('Error', JSON.stringify(error)),
-      {enableHighAccuracy: true, timeout: 20000, maximumAge: 1000},
-    );
-    this.watchID = Geolocation.watchPosition((position) => {
-      // const lastPosition = JSON.stringify(position);
-      const latestLong = JSON.stringify(position.coords.longitude);
-      const latestLat = JSON.stringify(position.coords.latitude);
-      this.setState({latestLong});
-      this.setState({latestLat});
-    });
-  }
-
-  componentWillUnmount() {
-    this.watchID != null && Geolocation.clearWatch(this.watchID);
-  }
-
-  render() {
-    return (
-      <View style={styles.container}>
-        <Text>
-          <Text style={styles.title}>Current Longitude: </Text>
-          {this.state.initialLong}
-        </Text>
-        <Text>
-          <Text style={styles.title}>Current Latitude: </Text>
-          {this.state.initialLat}
-        </Text>
-      </View>
-    );
-  }
-}
+  return (
+    <View>
+      <Button title="Get Current Position" onPress={getPosition} />
+      {error ? (
+        <Text>Error retrieving current position</Text>
+      ) : (
+        <>
+          <Text>Latitude: {position.latitude}</Text>
+          <Text>Longitude: {position.longitude}</Text>
+        </>
+      )}
+      {/* {console.log(data.main)} */}
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#00ff00" />
+      ) : (
+        <View>
+          <Text>{kelvinToCelsius(data.main.temp)}</Text>
+          <Text>{data.main.temp}</Text>
+        </View>
+      )}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
